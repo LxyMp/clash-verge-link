@@ -1,0 +1,161 @@
+// ===== 滚动条美化 =====
+@mixin custom-scrollbar($width: 4px, $thumb-color: var(--color-border), $track-color: transparent) {
+  &::-webkit-scrollbar {
+    width: $width;
+    height: $width;
+  }
+  &::-webkit-scrollbar-track {
+    background: $track-color;
+    border-radius: $width;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $thumb-color;
+    border-radius: $width;
+    &:hover {
+      background: var(--color-text-tertiary);
+    }
+  }
+}
+
+// ===== 毛玻璃效果 =====
+@mixin glassmorphism(
+  $bg: var(--glass-bg),
+  $border: var(--glass-border),
+  $blur: var(--glass-blur),
+  $radius: var(--radius-md)
+) {
+  background: $bg;
+  border: 1px solid $border;
+  backdrop-filter: blur($blur);
+  -webkit-backdrop-filter: blur($blur);
+  border-radius: $radius;
+}
+
+// ===== 单行文本溢出省略 =====
+@mixin text-ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// ===== 多行文本截断 =====
+@mixin text-clamp($lines: 2) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// ===== 弹性居中 =====
+@mixin flex-center($direction: row, $gap: 0) {
+  display: flex;
+  flex-direction: $direction;
+  align-items: center;
+  justify-content: center;
+  @if $gap != 0 {
+    gap: $gap;
+  }
+}
+
+// ===== 内联弹性布局 =====
+@mixin flex-between($gap: 0) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  @if $gap != 0 {
+    gap: $gap;
+  }
+}
+
+// ===== 交互态 hover + active 统一处理 =====
+@mixin interactive(
+  $bg-hover: var(--color-bg-tertiary),
+  $bg-active: var(--color-bg-elevated),
+  $transition: var(--transition-fast)
+) {
+  cursor: pointer;
+  transition:
+    background $transition,
+    transform $transition,
+    box-shadow $transition;
+
+  &:hover {
+    background: $bg-hover;
+  }
+
+  &:active {
+    background: $bg-active;
+    transform: scale(0.985);
+  }
+}
+
+// ===== 聚焦态环 =====
+@mixin focus-ring($color: var(--color-accent), $offset: 1px) {
+  outline: none;
+  &:focus-visible {
+    outline: 2px solid $color;
+    outline-offset: $offset;
+  }
+}
+
+// ===== 胶囊形状 =====
+@mixin pill($height: 28px) {
+  height: $height;
+  border-radius: calc($height / 2);
+  padding: 0 calc($height / 2);
+}
+
+// ===== 状态指示点 =====
+@mixin status-dot($size: 8px, $color: var(--color-success)) {
+  width: $size;
+  height: $size;
+  border-radius: 50%;
+  background: $color;
+  box-shadow: 0 0 6px $color;
+  flex-shrink: 0;
+}
+
+// ===== 淡入动画 =====
+@mixin fade-in($duration: var(--transition-base)) {
+  animation: fade-in $duration ease both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ===== 旋转动画 =====
+@mixin spin($duration: 800ms) {
+  animation: spin $duration linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ===== 脉冲动画（骨架屏用） =====
+@mixin skeleton-pulse {
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}

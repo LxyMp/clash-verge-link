@@ -1,0 +1,95 @@
+{
+  "appName": { "message": "ClashVergeLink" },
+  "appDesc": {
+    "message": "通过 ClashVergeLink 扩展使用本地 Clash Verge Rev 代理"
+  },
+  "actionTitle": { "message": "ClashVergeLink — 代理控制" },
+
+  "proxyOn": { "message": "ON" },
+  "proxyOff": { "message": "OFF" },
+  "connected": { "message": "已连接" },
+  "disconnected": { "message": "未连接" },
+  "checking": { "message": "检测中…" },
+  "connecting": { "message": "连接中…" },
+
+  "modeRule": { "message": "规则" },
+  "modeGlobal": { "message": "全局" },
+
+  "groupLabel": { "message": "策略组" },
+  "nodeListTitle": { "message": "节点列表" },
+  "noNodes": { "message": "无可用节点" },
+
+  "refresh": { "message": "刷新" },
+  "testAll": { "message": "全部测速" },
+  "testNode": { "message": "测试此节点" },
+  "stopTest": { "message": "停止测速" },
+
+  "refreshSuccess": { "message": "刷新成功" },
+  "refreshFail": { "message": "刷新失败" },
+  "switchSuccess": {
+    "message": "已切换至 $mode$",
+    "placeholders": { "mode": { "content": "$1" } }
+  },
+  "switchFail": { "message": "切换失败" },
+  "privateBrowsingRequired": {
+    "message": "请先在扩展权限中允许在隐私窗口运行"
+  },
+  "switchNodeFail": {
+    "message": "切换失败 [$group$]: $error$",
+    "placeholders": { "group": { "content": "$1" }, "error": { "content": "$2" } }
+  },
+  "nodeSwitched": {
+    "message": "切换为 $node$",
+    "placeholders": { "node": { "content": "$1" } }
+  },
+
+  "noGroup": { "message": "未找到策略组" },
+  "notSelector": {
+    "message": "该组类型为 $type$，仅 Selector 支持切换",
+    "placeholders": { "type": { "content": "$1" } }
+  },
+
+  "connectFail": { "message": "无法连接到 Clash Verge Rev" },
+  "retry": { "message": "重试" },
+  "detecting": { "message": "检测中" },
+
+  "settings": { "message": "设置" },
+  "apiConfig": { "message": "API 配置" },
+  "apiAddr": { "message": "API 地址" },
+  "apiProtocol": { "message": "API 协议" },
+  "apiPortLabel": { "message": "端口" },
+  "apiSecret": { "message": "API Secret" },
+  "apiSecretOptional": { "message": "可选" },
+  "mixedPort": { "message": "混合端口" },
+
+  "testConfig": { "message": "测速配置" },
+  "testUrl": { "message": "测速地址" },
+  "concurrency": { "message": "并发数" },
+  "timeoutMs": { "message": "超时 (ms)" },
+
+  "save": { "message": "保存" },
+  "saving": { "message": "保存中…" },
+  "saveSuccess": { "message": "保存成功" },
+  "saveConnectionWarning": { "message": "设置已保存，但当前无法连接到 Clash Verge Rev" },
+  "saveFail": { "message": "保存失败" },
+
+  "validateUrlEmpty": { "message": "API 地址不能为空" },
+  "validatePortRange": { "message": "API 端口需在 1-65535 之间" },
+  "validateMixedPort": { "message": "端口号需在 1-65535 之间" },
+  "validateApiHostLocal": { "message": "API 地址仅支持 127.0.0.1 或 localhost" },
+  "validateConcurrency": { "message": "并发数需在 1-20 之间" },
+  "validateTestUrl": { "message": "测速地址必须是有效的 HTTP 或 HTTPS URL" },
+  "validateTimeout": { "message": "测速超时需在 1000-30000 ms 之间" },
+
+  "contextMenuSettings": { "message": "设置" },
+
+  "langTheme": { "message": "语言与主题" },
+  "language": { "message": "语言" },
+  "langAuto": { "message": "自动" },
+  "langZh": { "message": "中文" },
+  "langEn": { "message": "English" },
+  "theme": { "message": "主题" },
+  "themeSystem": { "message": "跟随系统" },
+  "themeDark": { "message": "深色" },
+  "themeLight": { "message": "浅色" }
+}

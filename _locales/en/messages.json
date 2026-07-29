@@ -1,0 +1,95 @@
+{
+  "appName": { "message": "ClashVergeLink" },
+  "appDesc": {
+    "message": "Use Local Clash Verge Rev Proxy via ClashVergeLink Extension"
+  },
+  "actionTitle": { "message": "ClashVergeLink — Proxy Control" },
+
+  "proxyOn": { "message": "ON" },
+  "proxyOff": { "message": "OFF" },
+  "connected": { "message": "Connected" },
+  "disconnected": { "message": "Disconnected" },
+  "checking": { "message": "Checking…" },
+  "connecting": { "message": "Connecting…" },
+
+  "modeRule": { "message": "Rule" },
+  "modeGlobal": { "message": "Global" },
+
+  "groupLabel": { "message": "Group" },
+  "nodeListTitle": { "message": "Nodes" },
+  "noNodes": { "message": "No Available Nodes" },
+
+  "refresh": { "message": "Refresh" },
+  "testAll": { "message": "Test All" },
+  "testNode": { "message": "Test This Node" },
+  "stopTest": { "message": "Stop" },
+
+  "refreshSuccess": { "message": "Refresh Successful" },
+  "refreshFail": { "message": "Refresh Failed" },
+  "switchSuccess": {
+    "message": "Switched To $mode$",
+    "placeholders": { "mode": { "content": "$1" } }
+  },
+  "switchFail": { "message": "Switch Failed" },
+  "privateBrowsingRequired": {
+    "message": "Allow This Extension To Run In Private Windows First"
+  },
+  "switchNodeFail": {
+    "message": "Switch Failed [$group$]: $error$",
+    "placeholders": { "group": { "content": "$1" }, "error": { "content": "$2" } }
+  },
+  "nodeSwitched": {
+    "message": "Switched To $node$",
+    "placeholders": { "node": { "content": "$1" } }
+  },
+
+  "noGroup": { "message": "No Group Found" },
+  "notSelector": {
+    "message": "Group Type Is $type$, Only Selector Supports Switching",
+    "placeholders": { "type": { "content": "$1" } }
+  },
+
+  "connectFail": { "message": "Cannot Connect To Clash Verge Rev" },
+  "retry": { "message": "Retry" },
+  "detecting": { "message": "Detecting" },
+
+  "settings": { "message": "Settings" },
+  "apiConfig": { "message": "API Configuration" },
+  "apiAddr": { "message": "API Address" },
+  "apiProtocol": { "message": "API Protocol" },
+  "apiPortLabel": { "message": "Port" },
+  "apiSecret": { "message": "API Secret" },
+  "apiSecretOptional": { "message": "Optional" },
+  "mixedPort": { "message": "Mixed Port" },
+
+  "testConfig": { "message": "Test Configuration" },
+  "testUrl": { "message": "Test URL" },
+  "concurrency": { "message": "Concurrency" },
+  "timeoutMs": { "message": "Timeout (ms)" },
+
+  "save": { "message": "Save" },
+  "saving": { "message": "Saving…" },
+  "saveSuccess": { "message": "Saved Successfully" },
+  "saveConnectionWarning": { "message": "Settings Saved, But Clash Verge Rev Is Currently Unreachable" },
+  "saveFail": { "message": "Save Failed" },
+
+  "validateUrlEmpty": { "message": "API Address Is Required" },
+  "validatePortRange": { "message": "API Port Must Be 1–65535" },
+  "validateMixedPort": { "message": "Port Must Be 1–65535" },
+  "validateApiHostLocal": { "message": "API Host Must Be 127.0.0.1 Or localhost" },
+  "validateConcurrency": { "message": "Concurrency Must Be Between 1 And 20" },
+  "validateTestUrl": { "message": "Test URL Must Be A Valid HTTP Or HTTPS URL" },
+  "validateTimeout": { "message": "Timeout Must Be Between 1000 And 30000 ms" },
+
+  "contextMenuSettings": { "message": "Settings" },
+
+  "langTheme": { "message": "Language & Theme" },
+  "language": { "message": "Language" },
+  "langAuto": { "message": "Auto" },
+  "langZh": { "message": "Chinese" },
+  "langEn": { "message": "English" },
+  "theme": { "message": "Theme" },
+  "themeSystem": { "message": "System" },
+  "themeDark": { "message": "Dark" },
+  "themeLight": { "message": "Light" }
+}

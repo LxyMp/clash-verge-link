@@ -1,0 +1,6 @@
+node_modules/
+dist-firefox/
+web-ext-artifacts/
+.vite/
+*.local
+.DS_Store
