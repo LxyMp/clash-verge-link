@@ -15,9 +15,10 @@
   import { clashApi } from '../services/clashApi';
   import { getSettings } from '../services/storage';
   import { resolveLocaleDirectory } from '../services/settingsRules';
-  import { runBatched } from '../services/runBatched';
+  import { delaySortWeight } from '../services/nodeSort';
   import { isSuccessfulResponse } from '../background/proxyState';
   import { useI18n, loadLocale } from '../composables/useI18n';
+  import { useDelayTest } from '../composables/useDelayTest';
   import type { ProxyGroup as PG, ProxyNode, ClashMode } from '../types';
 
   const { t } = useI18n();
@@ -31,16 +32,19 @@
 
   const groups = ref<PG[]>([]);
   const proxies = ref<Record<string, ProxyNode>>({});
-  const delays = ref<Record<string, number>>({});
-  const testingNodes = ref<Record<string, boolean>>({});
-  const testingAll = ref(false);
   const selectedGroup = ref('');
   const showGroupDropdown = ref(false);
 
   let testUrl = 'http://www.gstatic.com/generate_204';
   let testTimeout = 5000;
   let testConcurrency = 5;
-  let testAbort: AbortController | null = null;
+
+  const { delays, testingNodes, testingAll, isAnyTesting, testNode, toggleTestAll, abortAll } =
+    useDelayTest({
+      getSignal: () => ac.signal,
+      getNodes: () => sortedNodes.value,
+      getConfig: () => ({ timeout: testTimeout, url: testUrl, concurrency: testConcurrency }),
+    });
 
   const toast = ref('');
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -88,22 +92,13 @@
     return selectorGroups.value[0] ?? null;
   });
 
-  const isAnyTesting = computed(
-    () => testingAll.value || Object.values(testingNodes.value).some((v) => v),
-  );
-
   // 过滤 + 排序（测速中不排序，完成后排序）
   const sortedNodes = computed(() => {
     if (!coreGroup.value) return [];
     const list = coreGroup.value.all.filter((n) => n in proxies.value);
     if (!isAnyTesting.value) {
-      list.sort((a, b) => {
-        const da = delays.value[a];
-        const db = delays.value[b];
-        const va = da === undefined ? Infinity : da < 0 ? Infinity + 1 : da;
-        const vb = db === undefined ? Infinity : db < 0 ? Infinity + 1 : db;
-        return va - vb;
-      });
+      // 正常延迟升序；未测速居中；测速失败排最后
+      list.sort((a, b) => delaySortWeight(delays.value[a]) - delaySortWeight(delays.value[b]));
     }
     return list;
   });
@@ -141,7 +136,8 @@
 
   onUnmounted(() => {
     ac.abort();
-    if (testAbort) testAbort.abort();
+    abortAll();
+    if (toastTimer) clearTimeout(toastTimer);
   });
 
   async function checkConnection(signal: AbortSignal): Promise<void> {
@@ -267,64 +263,6 @@
     }
   }
 
-  async function testNodeDelay(name: string): Promise<void> {
-    if (testingNodes.value[name]) return;
-    testingNodes.value = { ...testingNodes.value, [name]: true };
-    await doSingleTest(name);
-  }
-
-  async function doSingleTest(name: string): Promise<void> {
-    try {
-      const r = await clashApi.testDelay(name, testTimeout, testUrl, ac.signal);
-      delays.value = { ...delays.value, [name]: r.delay };
-    } catch {
-      delays.value = { ...delays.value, [name]: -1 };
-    } finally {
-      testingNodes.value = { ...testingNodes.value, [name]: false };
-    }
-  }
-
-  async function doTestDelay(name: string, signal: AbortSignal): Promise<void> {
-    try {
-      const r = await clashApi.testDelay(name, testTimeout, testUrl, signal);
-      delays.value = { ...delays.value, [name]: r.delay };
-    } catch {
-      if (!signal.aborted) delays.value = { ...delays.value, [name]: -1 };
-    } finally {
-      testingNodes.value = { ...testingNodes.value, [name]: false };
-    }
-  }
-
-  async function toggleTestAll(): Promise<void> {
-    if (testingAll.value) {
-      testAbort?.abort();
-      testAbort = null;
-      testingAll.value = false;
-      return;
-    }
-
-    const groupName = coreGroup.value?.name;
-    if (!groupName) return;
-    const pending = sortedNodes.value.filter((n) => !testingNodes.value[n]);
-    if (!pending.length) return;
-
-    const runController = new AbortController();
-    testingAll.value = true;
-    testAbort = runController;
-    const signal = runController.signal;
-
-    try {
-      await runBatched(pending, testConcurrency, signal, async (name) => {
-        testingNodes.value = { ...testingNodes.value, [name]: true };
-        await doTestDelay(name, signal);
-      });
-    } finally {
-      if (testAbort === runController) {
-        testingAll.value = false;
-        testAbort = null;
-      }
-    }
-  }
 </script>
 
 <template>
@@ -456,7 +394,7 @@
             :is-testing="!!testingNodes[nodeName]"
             :is-active="coreGroup.now === nodeName"
             @select="switchNode(nodeName)"
-            @test-delay="testNodeDelay(nodeName)"
+            @test-delay="testNode(nodeName)"
           />
         </div>
       </section>

@@ -5,6 +5,9 @@ import type {
   HealthCheckResult,
 } from '../types';
 
+/** 默认请求超时(ms)：防止针对本地 API 的请求无限悬挂 */
+const DEFAULT_TIMEOUT_MS = 10_000;
+
 /**
  * Clash Verge Rev RESTful API 客户端
  *
@@ -32,16 +35,33 @@ export class ClashApi {
     return { ...h, ...(extra as Record<string, string> | undefined) };
   }
 
-  /** 通用请求方法 */
-  private async request<T>(path: string, options?: RequestInit, signal?: AbortSignal): Promise<T> {
+  /**
+   * 通用请求方法
+   *
+   * 默认带超时（timeoutMs），调用方传入的 signal 与超时信号通过 AbortSignal.any 合并：
+   * 任一触发都会中止请求。timeoutMs 传 0 表示不设超时。
+   */
+  private async request<T>(
+    path: string,
+    options?: RequestInit,
+    signal?: AbortSignal,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+  ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
+
+    let fetchSignal = signal;
+    if (timeoutMs > 0) {
+      const timeoutSignal = AbortSignal.timeout(timeoutMs);
+      fetchSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+    }
+
     const res = await fetch(url, {
       ...options,
       headers: {
         ...this.headers(),
         ...(options?.headers as Record<string, string> | undefined),
       },
-      signal,
+      signal: fetchSignal,
     });
 
     if (!res.ok) {
@@ -51,7 +71,7 @@ export class ClashApi {
       throw err;
     }
 
-    console.log(`[ClashApi] ${options?.method ?? 'GET'} ${url} → ${res.status}`);
+    console.debug(`[ClashApi] ${options?.method ?? 'GET'} ${url} → ${res.status}`);
 
     // 204 No Content
     if (res.status === 204) return undefined as T;
@@ -122,7 +142,14 @@ export class ClashApi {
   ): Promise<DelayResult> {
     const encoded = encodeURIComponent(nodeName);
     const params = new URLSearchParams({ timeout: String(timeout), url });
-    return this.request<DelayResult>(`/proxies/${encoded}/delay?${params}`, undefined, signal);
+    // Clash 服务端按 timeout 参数返回结果，客户端超时留一点缓冲，
+    // 避免默认 10s 超时截断用户配置的长测速（最大 30s）。
+    return this.request<DelayResult>(
+      `/proxies/${encoded}/delay?${params}`,
+      undefined,
+      signal,
+      timeout + 2000,
+    );
   }
 
   /**

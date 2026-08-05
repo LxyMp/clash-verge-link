@@ -1,5 +1,6 @@
 import type { BackgroundMessage, PluginSettings } from '../types'
 import { getSettings } from '../services/storage'
+import { clashApi } from '../services/clashApi'
 import { isOwnedProxyConfig } from './proxyState'
 
 const PROXY_HOST = '127.0.0.1'
@@ -43,15 +44,32 @@ async function persistProxyEnabled(enabled: boolean): Promise<void> {
   await browser.storage.local.set({ settings: { ...current, proxyEnabled: enabled } })
 }
 
-async function rollbackProxyFirefox(context: string, error: unknown): Promise<void> {
-  console.error(context, error instanceof Error ? error.message : String(error))
+/** 清除 Firefox 代理并将持久化状态回滚为关闭 */
+async function clearProxyAndState(context: string): Promise<void> {
   await persistProxyEnabled(false)
   await disableProxyFirefox().catch((cleanupError: unknown) => {
     console.error(
-      '[ClashVergeLink] proxy cleanup:',
+      context,
       cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
     )
   })
+}
+
+async function rollbackProxyFirefox(context: string, error: unknown): Promise<void> {
+  console.error(context, error instanceof Error ? error.message : String(error))
+  await clearProxyAndState('[ClashVergeLink] proxy cleanup:')
+}
+
+/** 探测 Clash 外部控制器是否在线（带默认超时，不会悬挂） */
+async function isClashOnline(): Promise<boolean> {
+  try {
+    const settings = await getSettings()
+    clashApi.setConfig(settings.apiBaseUrl, settings.apiSecret)
+    await clashApi.healthCheck()
+    return true
+  } catch {
+    return false
+  }
 }
 
 browser.runtime.onMessage.addListener(
@@ -133,11 +151,19 @@ browser.contextMenus.onClicked.addListener((info) => {
 void (async () => {
   try {
     const settings = await getSettings()
-    if (settings.proxyEnabled) {
-      await enableProxyFirefox().catch((error: unknown) =>
-        rollbackProxyFirefox('[ClashVergeLink] restore proxy:', error),
-      )
+    if (!settings.proxyEnabled) return
+
+    // Clash 离线时不恢复代理，避免把 Firefox 指向不可用端口；
+    // 同时清除残留代理配置并把持久化状态回滚为关闭，保持状态一致。
+    if (!(await isClashOnline())) {
+      console.warn('[ClashVergeLink] init: Clash offline, clearing stale proxy')
+      await clearProxyAndState('[ClashVergeLink] init: proxy cleanup:')
+      return
     }
+
+    await enableProxyFirefox().catch((error: unknown) =>
+      rollbackProxyFirefox('[ClashVergeLink] restore proxy:', error),
+    )
   } catch (error: unknown) {
     console.error('[ClashVergeLink] init:', error instanceof Error ? error.message : String(error))
   }

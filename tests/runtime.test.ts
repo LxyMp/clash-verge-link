@@ -60,5 +60,40 @@ test('runBatched stops scheduling work after abort', async () => {
     if (value === 1) controller.abort();
   });
 
-  assert.deepEqual(started, [1, 2]);
+  // 滑动窗口下 abort 同步发生在第二个工作槽拉取之前，因此只有第 1 项被调度
+  assert.deepEqual(started, [1]);
+});
+
+test('runBatched bounds concurrency and processes every item', async () => {
+  const controller = new AbortController();
+  const started: number[] = [];
+  let inFlight = 0;
+  let maxInFlight = 0;
+
+  await runBatched([1, 2, 3, 4, 5, 6], 3, controller.signal, async (value) => {
+    started.push(value);
+    inFlight += 1;
+    maxInFlight = Math.max(maxInFlight, inFlight);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    inFlight -= 1;
+  });
+
+  assert.deepEqual(started, [1, 2, 3, 4, 5, 6]);
+  assert.ok(maxInFlight <= 3, `max in-flight ${maxInFlight} exceeded concurrency 3`);
+});
+
+test('runBatched handles empty items and aborted signal', async () => {
+  const started: number[] = [];
+  const aborted = new AbortController();
+  aborted.abort();
+
+  await runBatched([], 3, aborted.signal, async (value) => {
+    started.push(value);
+  });
+  assert.deepEqual(started, []);
+
+  await runBatched([1, 2], 2, aborted.signal, async (value) => {
+    started.push(value);
+  });
+  assert.deepEqual(started, []);
 });
