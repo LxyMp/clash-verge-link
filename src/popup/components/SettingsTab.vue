@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, onMounted, watch } from 'vue';
+  import { ref, onMounted, onUnmounted, watch } from 'vue';
   import { AlertTriangle, CheckCircle2, Loader2, CircleCheck } from 'lucide-vue-next';
   import { getSettings, saveSettings } from '../../services/storage';
   import { ClashApi, clashApi } from '../../services/clashApi';
@@ -11,6 +11,7 @@
   } from '../../services/settingsRules';
 
   import { useI18n } from '../../composables/useI18n';
+  import { useTheme } from '../../composables/useTheme';
   const { t } = useI18n();
   const emit = defineEmits<{ settingsSaved: [connectionOk: boolean | null] }>();
 
@@ -50,11 +51,8 @@
     showLang.value = false;
   }
 
-  function applyTheme(t: string): void {
-    document.documentElement.setAttribute('data-theme', t);
-  }
-
-  watch(themeVal, (v) => applyTheme(v));
+  const stopThemeWatch = useTheme(themeVal);
+  onUnmounted(stopThemeWatch);
   watch(language, async (v) => {
     const { loadLocale } = await import('../../composables/useI18n');
     await loadLocale(resolveLocaleDirectory(v, browser.i18n.getUILanguage()));
@@ -108,7 +106,6 @@
     testTimeout.value = s.testTimeout;
     language.value = s.language;
     themeVal.value = s.theme || 'system';
-    applyTheme(themeVal.value);
   });
 
   function validate(): string | null {

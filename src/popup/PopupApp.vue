@@ -19,6 +19,7 @@
   import { isSuccessfulResponse } from '../background/proxyState';
   import { useI18n, loadLocale } from '../composables/useI18n';
   import { useDelayTest } from '../composables/useDelayTest';
+  import { useTheme } from '../composables/useTheme';
   import type { ProxyGroup as PG, ProxyNode, ClashMode } from '../types';
 
   const { t } = useI18n();
@@ -57,10 +58,12 @@
     }, 2000);
   }
 
-  // 初始化主题
+  const theme = ref('system');
+  // 初始化主题（尽早应用，避免闪烁；useTheme 会在 ref 变化时重新应用）
   getSettings().then((s) => {
-    document.documentElement.setAttribute('data-theme', s.theme || 'system');
+    theme.value = s.theme || 'system';
   });
+  const stopThemeWatch = useTheme(theme);
 
   const SKIP_TYPES = new Set([
     'urltest',
@@ -137,6 +140,7 @@
   onUnmounted(() => {
     ac.abort();
     abortAll();
+    stopThemeWatch();
     if (toastTimer) clearTimeout(toastTimer);
   });
 

@@ -97,3 +97,45 @@ test('runBatched handles empty items and aborted signal', async () => {
   });
   assert.deepEqual(started, []);
 });
+
+test('isOwnedProxyConfig rejects wrong ports, hosts, and malformed endpoints', () => {
+  const base = {
+    proxyType: 'manual',
+    http: 'http://127.0.0.1:7899',
+    httpProxyAll: true,
+    passthrough: 'localhost, 127.0.0.1, [::1], <local>',
+  };
+  const controlled = 'controlled_by_this_extension' as const;
+  assert.equal(isOwnedProxyConfig({ ...base, http: 'http://127.0.0.1:0' }, 7899, controlled), false);
+  assert.equal(isOwnedProxyConfig({ ...base, http: 'http://127.0.0.1' }, 7899, controlled), false);
+  assert.equal(
+    isOwnedProxyConfig({ ...base, http: 'http://localhost:7899' }, 7899, controlled),
+    false,
+  );
+  assert.equal(isOwnedProxyConfig({ ...base, http: 'not a url' }, 7899, controlled), false);
+  assert.equal(isOwnedProxyConfig({ ...base, http: undefined }, 7899, controlled), false);
+});
+
+test('isOwnedProxyConfig matches passthrough as a set', () => {
+  const base = { proxyType: 'manual', http: 'http://127.0.0.1:7899', httpProxyAll: true };
+  const controlled = 'controlled_by_this_extension' as const;
+  assert.equal(
+    isOwnedProxyConfig(
+      { ...base, passthrough: '<local>, [::1], 127.0.0.1, localhost' },
+      7899,
+      controlled,
+    ),
+    true,
+  );
+  assert.equal(isOwnedProxyConfig({ ...base, passthrough: undefined }, 7899, controlled), false);
+});
+
+test('isOwnedProxyConfig requires this-extension control', () => {
+  const ownedConfig = {
+    proxyType: 'manual',
+    http: 'http://127.0.0.1:7899',
+    httpProxyAll: true,
+    passthrough: 'localhost, 127.0.0.1, [::1], <local>',
+  };
+  assert.equal(isOwnedProxyConfig(ownedConfig, 7899, undefined), false);
+});

@@ -4,15 +4,19 @@
   import { clashApi } from '../services/clashApi';
   import { getSettings } from '../services/storage';
   import { useI18n } from '../composables/useI18n';
+  import { useTheme } from '../composables/useTheme';
 
   const { t } = useI18n();
 
   let ac = new AbortController();
   const connectionStatus = ref<'connected' | 'disconnected' | 'checking'>('checking');
 
+  const theme = ref('system');
+
   getSettings().then((settings) => {
-    document.documentElement.setAttribute('data-theme', settings.theme || 'system');
+    theme.value = settings.theme || 'system';
   });
+  const stopThemeWatch = useTheme(theme);
 
   onMounted(async () => {
     ac = new AbortController();
@@ -21,7 +25,10 @@
     await checkConnection();
   });
 
-  onUnmounted(() => ac.abort());
+  onUnmounted(() => {
+    ac.abort();
+    stopThemeWatch();
+  });
 
   async function checkConnection(): Promise<void> {
     connectionStatus.value = 'checking';
@@ -37,6 +44,7 @@
     ac.abort();
     ac = new AbortController();
     const settings = await getSettings();
+    theme.value = settings.theme || 'system';
     clashApi.setConfig(settings.apiBaseUrl, settings.apiSecret);
     if (connectionOk !== null) {
       connectionStatus.value = connectionOk ? 'connected' : 'disconnected';

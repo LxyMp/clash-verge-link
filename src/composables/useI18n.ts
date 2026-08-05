@@ -44,7 +44,7 @@ export function useI18n() {
       if (subs) {
         for (const [k, v] of Object.entries(subs)) {
           const sv = v == null ? '' : String(v);
-          msg = msg.replace(`$${k}$`, sv);
+          msg = msg.split(`$${k}$`).join(sv);
         }
       }
       return msg;
