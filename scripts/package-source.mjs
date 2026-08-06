@@ -13,7 +13,6 @@ const sourcePaths = [
   'PRIVACY.md',
   'README.md',
   '_locales',
-  'docs',
   'index.html',
   'manifest.json',
   'package.json',
