@@ -35,16 +35,16 @@ yarn dev
 
 ## 在 Firefox 中测试
 
-自动创建临时 Firefox 配置并载入扩展：
+自动构建并载入扩展到临时浏览器配置。脚本默认使用 macOS 上的 Zen 浏览器（Firefox 内核）：
 
 ```bash
 yarn firefox
 ```
 
-使用 macOS 上的 Zen 浏览器时：
+使用原生 Firefox 时，用 `--firefox` 覆盖默认路径：
 
 ```bash
-yarn firefox --firefox /Applications/Zen.app/Contents/MacOS/zen
+yarn firefox --firefox /Applications/Firefox.app/Contents/MacOS/firefox
 ```
 
 也可以手动载入：
@@ -110,7 +110,7 @@ src/
 | `yarn dev` | 持续构建 Firefox 扩展 |
 | `yarn test` | 运行单元测试 |
 | `yarn build` | 类型检查并生成 `dist-firefox/` |
-| `yarn firefox` | 构建并在临时 Firefox 配置中运行 |
+| `yarn firefox` | 构建并在临时浏览器中运行（默认 Zen，可用 `--firefox` 覆盖） |
 | `yarn lint:addon` | 构建并运行 AMO 静态校验 |
 | `yarn package:addon` | 构建并生成提交 ZIP |
 | `yarn package:source` | 生成供 AMO 审核的源码 ZIP |

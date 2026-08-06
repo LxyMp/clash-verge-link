@@ -9,7 +9,7 @@
     "test": "tsx --test tests/*.test.ts",
     "build": "vue-tsc --noEmit && vite build",
     "lint:addon": "yarn build && web-ext lint --source-dir dist-firefox --no-config-discovery",
-    "firefox": "yarn build && web-ext run --source-dir dist-firefox",
+    "firefox": "yarn build && web-ext run --source-dir dist-firefox --no-config-discovery --firefox /Applications/Zen.app/Contents/MacOS/zen",
     "package:addon": "yarn build && web-ext build --source-dir dist-firefox --artifacts-dir web-ext-artifacts --overwrite-dest --no-config-discovery",
     "package:source": "node scripts/package-source.mjs",
     "icons": "node scripts/render-icons.mjs",
