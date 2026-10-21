@@ -1,16 +1,20 @@
 {
   "name": "clash-verge-link",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "license": "MIT",
   "scripts": {
     "dev": "vite build --watch",
+    "dev:chrome": "EXT_TARGET=chrome vite build --watch",
     "test": "tsx --test tests/*.test.ts",
     "build": "vue-tsc --noEmit && vite build",
+    "build:chrome": "vue-tsc --noEmit && EXT_TARGET=chrome vite build",
     "lint:addon": "yarn build && web-ext lint --source-dir dist-firefox --no-config-discovery",
     "firefox": "yarn build && web-ext run --source-dir dist-firefox --no-config-discovery --firefox /Applications/Zen.app/Contents/MacOS/zen",
+    "chrome": "yarn build:chrome && node scripts/run-chrome.mjs",
     "package:addon": "yarn build && web-ext build --source-dir dist-firefox --artifacts-dir web-ext-artifacts --overwrite-dest --no-config-discovery",
+    "package:chrome": "yarn build:chrome && node scripts/package-chrome.mjs",
     "package:source": "node scripts/package-source.mjs",
     "icons": "node scripts/render-icons.mjs",
     "preview": "vite preview"

@@ -1,5 +1,6 @@
 node_modules/
 dist-firefox/
+dist-chrome/
 web-ext-artifacts/
 .vite/
 *.local

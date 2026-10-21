@@ -8,7 +8,8 @@ export type SettingsValidationError =
   | 'mixedPortRange'
   | 'testConcurrencyRange'
   | 'testUrlInvalid'
-  | 'testTimeoutRange';
+  | 'testTimeoutRange'
+  | 'bypassRuleInvalid';
 
 export interface SettingsInput {
   apiProtocol: ApiProtocol;
@@ -19,6 +20,7 @@ export interface SettingsInput {
   testConcurrency: number;
   testUrl: string;
   testTimeout: number;
+  bypassRules?: string[];
 }
 
 export const DEFAULT_SETTINGS: PluginSettings = {
@@ -31,7 +33,21 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   testTimeout: 5000,
   language: '',
   theme: 'system',
+  bypassRules: [],
 };
+
+/** 直连规则归一化：仅保留非空字符串，去重，保持原顺序 */
+export function normalizeBypassRules(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (typeof item !== 'string') continue;
+    const rule = item.trim();
+    if (!rule || seen.has(rule)) continue;
+    seen.add(rule);
+  }
+  return [...seen];
+}
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
   const number = typeof value === 'number' ? value : Number(value);
@@ -61,6 +77,7 @@ export function normalizeSettings(stored: Partial<PluginSettings> = {}): PluginS
       settings.theme === 'light' || settings.theme === 'dark' || settings.theme === 'system'
         ? settings.theme
         : 'system',
+    bypassRules: normalizeBypassRules(settings.bypassRules),
   };
 }
 
@@ -96,5 +113,12 @@ export function validateSettingsInput(input: SettingsInput): SettingsValidationE
   }
   if (!Number.isInteger(input.testTimeout) || input.testTimeout < 1000 || input.testTimeout > 30000)
     return 'testTimeoutRange';
+  for (const rule of input.bypassRules ?? []) {
+    try {
+      new RegExp(rule);
+    } catch {
+      return 'bypassRuleInvalid';
+    }
+  }
   return null;
 }

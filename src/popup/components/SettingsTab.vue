@@ -23,6 +23,7 @@
   const testConcurrency = ref(5);
   const testUrl = ref('');
   const testTimeout = ref(5000);
+  const bypassText = ref('');
   const saving = ref(false);
   const toastMsg = ref('');
   const toastType = ref<'success' | 'warning' | 'error'>('error');
@@ -104,9 +105,31 @@
     testConcurrency.value = s.testConcurrency;
     testUrl.value = s.testUrl;
     testTimeout.value = s.testTimeout;
+    bypassText.value = s.bypassRules.join('\n');
     language.value = s.language;
     themeVal.value = s.theme || 'system';
   });
+
+  /** textarea 一行一条规则，去空白行与首尾空格 */
+  function parseBypassLines(): string[] {
+    return bypassText.value
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+
+  function invalidBypassLine(): string | null {
+    return (
+      parseBypassLines().find((rule) => {
+        try {
+          new RegExp(rule);
+          return false;
+        } catch {
+          return true;
+        }
+      }) ?? null
+    );
+  }
 
   function validate(): string | null {
     const error = validateSettingsInput({
@@ -118,8 +141,13 @@
       testConcurrency: testConcurrency.value,
       testUrl: testUrl.value.trim(),
       testTimeout: testTimeout.value,
+      bypassRules: parseBypassLines(),
     });
     if (!error) return null;
+    if (error === 'bypassRuleInvalid') {
+      const bad = invalidBypassLine();
+      return bad ? `${t('validateBypassRule')}: ${bad}` : t('validateBypassRule');
+    }
     const messages: Record<SettingsValidationError, string> = {
       apiHostEmpty: 'validateUrlEmpty',
       apiHostLocal: 'validateApiHostLocal',
@@ -128,6 +156,7 @@
       testConcurrencyRange: 'validateConcurrency',
       testUrlInvalid: 'validateTestUrl',
       testTimeoutRange: 'validateTimeout',
+      bypassRuleInvalid: 'validateBypassRule',
     };
     return t(messages[error]);
   }
@@ -151,6 +180,7 @@
         testConcurrency: testConcurrency.value,
         testUrl: testUrl.value.trim(),
         testTimeout: testTimeout.value,
+        bypassRules: parseBypassLines(),
         language: language.value,
         theme: themeVal.value,
       };
@@ -324,6 +354,21 @@
             placeholder="5000"
           />
         </div>
+      </div>
+
+      <!-- ====== 直连规则 ====== -->
+      <h3 class="section">{{ t('bypassConfig') }}</h3>
+
+      <div class="field">
+        <label class="label">{{ t('bypassRulesLabel') }}</label>
+        <textarea
+          v-model="bypassText"
+          class="input textarea"
+          rows="4"
+          spellcheck="false"
+          :placeholder="t('bypassRulesPlaceholder')"
+        ></textarea>
+        <div class="hint">{{ t('bypassRulesHint') }}</div>
       </div>
 
       <!-- ====== 语言与主题 ====== -->
@@ -620,6 +665,21 @@
       color: var(--color-accent);
       background: var(--color-accent-muted);
     }
+  }
+
+  .textarea {
+    height: auto;
+    min-height: 96px;
+    padding: var(--space-sm) var(--space-md);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    line-height: 1.7;
+    resize: vertical;
+  }
+  .hint {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-tertiary);
+    line-height: 1.5;
   }
 
   .divider {

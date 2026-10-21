@@ -67,6 +67,16 @@
   "concurrency": { "message": "Concurrency" },
   "timeoutMs": { "message": "Timeout (ms)" },
 
+  "bypassConfig": { "message": "Bypass Rules" },
+  "bypassRulesLabel": { "message": "URLs That Skip The Proxy" },
+  "bypassRulesHint": {
+    "message": "One regular expression per line, matched against the full URL (scheme and path included). Matching URLs connect directly even when the proxy is ON. On Chrome, rules must be RE2-compatible (no lookahead or backreferences)."
+  },
+  "bypassRulesPlaceholder": {
+    "message": "example\\.com\n^https://internal\\.\n\\.google\\.com"
+  },
+  "validateBypassRule": { "message": "Invalid Regex Rule" },
+
   "save": { "message": "Save" },
   "saving": { "message": "Saving…" },
   "saveSuccess": { "message": "Saved Successfully" },

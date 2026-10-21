@@ -101,6 +101,8 @@ export interface PluginSettings {
   language: string;
   /** 主题：system | dark | light */
   theme: string;
+  /** 直连规则：每条为一个正则表达式，命中完整 URL 的请求不走代理 */
+  bypassRules: string[];
 }
 
 // ---------- Background ↔ Popup 消息协议 ----------

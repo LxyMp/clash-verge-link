@@ -229,7 +229,11 @@
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       console.error('[toggleProxy]', message);
-      showToast(message.includes('private browsing permission') ? t('privateBrowsingRequired') : t('switchFail'));
+      showToast(
+        message.includes('private browsing permission')
+          ? t('privateBrowsingRequired')
+          : `${t('switchFail')}: ${message}`,
+      );
     }
   }
 

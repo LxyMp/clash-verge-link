@@ -67,6 +67,16 @@
   "concurrency": { "message": "并发数" },
   "timeoutMs": { "message": "超时 (ms)" },
 
+  "bypassConfig": { "message": "直连规则" },
+  "bypassRulesLabel": { "message": "不走代理的网址规则" },
+  "bypassRulesHint": {
+    "message": "按正则匹配完整 URL（含协议与路径），一行一条；命中的网址在代理开启时也直连。Chrome 端需兼容 RE2 语法（不支持前瞻、后向引用）。"
+  },
+  "bypassRulesPlaceholder": {
+    "message": "example\\.com\n^https://internal\\.\n\\.google\\.com"
+  },
+  "validateBypassRule": { "message": "无效的正则规则" },
+
   "save": { "message": "保存" },
   "saving": { "message": "保存中…" },
   "saveSuccess": { "message": "保存成功" },

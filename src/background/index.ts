@@ -1,42 +1,35 @@
 import type { BackgroundMessage, PluginSettings } from '../types'
 import { getSettings } from '../services/storage'
 import { clashApi } from '../services/clashApi'
-import { isOwnedProxyConfig } from './proxyState'
+import { createProxyBackend } from './proxyBackend'
 
 const PROXY_HOST = '127.0.0.1'
 const DEFAULT_PORT = 7899
 
-let cachedPort = DEFAULT_PORT
+const proxy = createProxyBackend()
 
-async function loadPort(): Promise<void> {
+let cachedPort = DEFAULT_PORT
+let cachedRules: string[] = []
+
+async function loadProxyParams(): Promise<void> {
   const raw = await browser.storage.local.get('settings')
   const settings = raw['settings'] as Partial<PluginSettings> | undefined
   cachedPort = settings?.mixedPort ?? DEFAULT_PORT
+  cachedRules = Array.isArray(settings?.bypassRules) ? settings!.bypassRules : []
 }
 
-async function enableProxyFirefox(): Promise<void> {
-  await loadPort()
-  const config: browser.proxy.ProxyConfig = {
-    proxyType: 'manual',
-    http: `http://${PROXY_HOST}:${cachedPort}`,
-    httpProxyAll: true,
-    passthrough: 'localhost, 127.0.0.1, [::1], <local>',
-  }
-  await browser.proxy.settings.set({ value: config, scope: 'regular' })
+async function enableProxy(): Promise<void> {
+  await loadProxyParams()
+  await proxy.setProxy(PROXY_HOST, cachedPort, cachedRules)
 }
 
-async function disableProxyFirefox(): Promise<void> {
-  await browser.proxy.settings.clear({ scope: 'regular' })
+async function disableProxy(): Promise<void> {
+  await proxy.clearProxy()
 }
 
-async function getProxyStatusFirefox(): Promise<boolean> {
-  await loadPort()
-  const result = await browser.proxy.settings.get({})
-  return isOwnedProxyConfig(
-    result.value as browser.proxy.ProxyConfig,
-    cachedPort,
-    result.levelOfControl,
-  )
+async function getProxyStatus(): Promise<boolean> {
+  await loadProxyParams()
+  return proxy.isProxyOwned(cachedPort)
 }
 
 async function persistProxyEnabled(enabled: boolean): Promise<void> {
@@ -44,10 +37,10 @@ async function persistProxyEnabled(enabled: boolean): Promise<void> {
   await browser.storage.local.set({ settings: { ...current, proxyEnabled: enabled } })
 }
 
-/** 清除 Firefox 代理并将持久化状态回滚为关闭 */
+/** 清除浏览器代理并将持久化状态回滚为关闭 */
 async function clearProxyAndState(context: string): Promise<void> {
   await persistProxyEnabled(false)
-  await disableProxyFirefox().catch((cleanupError: unknown) => {
+  await disableProxy().catch((cleanupError: unknown) => {
     console.error(
       context,
       cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
@@ -55,7 +48,7 @@ async function clearProxyAndState(context: string): Promise<void> {
   })
 }
 
-async function rollbackProxyFirefox(context: string, error: unknown): Promise<void> {
+async function rollbackProxy(context: string, error: unknown): Promise<void> {
   console.error(context, error instanceof Error ? error.message : String(error))
   await clearProxyAndState('[ClashVergeLink] proxy cleanup:')
 }
@@ -72,37 +65,46 @@ async function isClashOnline(): Promise<boolean> {
   }
 }
 
-browser.runtime.onMessage.addListener(
-  async (message: BackgroundMessage & { action: string }): Promise<unknown> => {
-    try {
-      switch (message.action) {
-        case 'SET_PROXY': {
-          const enabled = Boolean(message.enabled)
-          try {
-            if (enabled) await enableProxyFirefox()
-            else await disableProxyFirefox()
-          } catch (error) {
-            if (enabled) {
-              await rollbackProxyFirefox('[ClashVergeLink] enable proxy:', error)
-            }
-            throw error
-          }
-
-          await persistProxyEnabled(enabled)
-          return { success: true }
+async function handleMessage(
+  message: BackgroundMessage & { action: string },
+): Promise<unknown> {
+  switch (message.action) {
+    case 'SET_PROXY': {
+      const enabled = Boolean(message.enabled)
+      try {
+        if (enabled) await enableProxy()
+        else await disableProxy()
+      } catch (error) {
+        if (enabled) {
+          await rollbackProxy('[ClashVergeLink] enable proxy:', error)
         }
-
-        case 'GET_PROXY_STATUS':
-          return { enabled: await getProxyStatusFirefox() }
-
-        default:
-          return { success: false, error: `Unknown action: ${message.action}` }
+        throw error
       }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error)
-      console.error('[ClashVergeLink::Background]', message)
-      return { success: false, error: message }
+
+      await persistProxyEnabled(enabled)
+      return { success: true }
     }
+
+    case 'GET_PROXY_STATUS':
+      return { enabled: await getProxyStatus() }
+
+    default:
+      return { success: false, error: `Unknown action: ${message.action}` }
+  }
+}
+
+// Chrome 不支持 async 监听器以返回 Promise 的方式回传响应，
+// 统一使用 sendResponse + return true 的经典模式（Firefox 同样支持）。
+browser.runtime.onMessage.addListener(
+  (message: BackgroundMessage & { action: string }, _sender, sendResponse) => {
+    handleMessage(message)
+      .then((response) => sendResponse(response as Record<string, unknown>))
+      .catch((error: unknown) => {
+        const text = error instanceof Error ? error.message : String(error)
+        console.error('[ClashVergeLink::Background]', text)
+        sendResponse({ success: false, error: text })
+      })
+    return true
   },
 )
 
@@ -112,9 +114,15 @@ browser.storage.onChanged.addListener((changes, areaName) => {
   const previous = changes['settings']?.oldValue as PluginSettings | undefined
   if (!settings) return
 
-  if (settings.proxyEnabled && previous && previous.mixedPort !== settings.mixedPort) {
-    void enableProxyFirefox()
-      .catch((error: unknown) => rollbackProxyFirefox('[ClashVergeLink] reapply proxy:', error))
+  const portChanged = previous !== undefined && previous.mixedPort !== settings.mixedPort
+  const rulesChanged =
+    previous !== undefined &&
+    JSON.stringify(previous.bypassRules ?? []) !== JSON.stringify(settings.bypassRules ?? [])
+
+  // 端口或直连规则变化时，重新应用代理配置使新值生效
+  if (settings.proxyEnabled && (portChanged || rulesChanged)) {
+    void enableProxy()
+      .catch((error: unknown) => rollbackProxy('[ClashVergeLink] reapply proxy:', error))
       .catch((error: unknown) => {
         console.error(
           '[ClashVergeLink] proxy rollback:',
@@ -153,7 +161,7 @@ void (async () => {
     const settings = await getSettings()
     if (!settings.proxyEnabled) return
 
-    // Clash 离线时不恢复代理，避免把 Firefox 指向不可用端口；
+    // Clash 离线时不恢复代理，避免把浏览器指向不可用端口；
     // 同时清除残留代理配置并把持久化状态回滚为关闭，保持状态一致。
     if (!(await isClashOnline())) {
       console.warn('[ClashVergeLink] init: Clash offline, clearing stale proxy')
@@ -161,8 +169,8 @@ void (async () => {
       return
     }
 
-    await enableProxyFirefox().catch((error: unknown) =>
-      rollbackProxyFirefox('[ClashVergeLink] restore proxy:', error),
+    await enableProxy().catch((error: unknown) =>
+      rollbackProxy('[ClashVergeLink] restore proxy:', error),
     )
   } catch (error: unknown) {
     console.error('[ClashVergeLink] init:', error instanceof Error ? error.message : String(error))
