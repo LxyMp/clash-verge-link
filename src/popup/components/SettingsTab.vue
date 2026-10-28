@@ -3,6 +3,7 @@
   import { AlertTriangle, CheckCircle2, Loader2, CircleCheck } from 'lucide-vue-next';
   import { getSettings, saveSettings } from '../../services/storage';
   import { ClashApi, clashApi } from '../../services/clashApi';
+  import { parseBypassRule } from '../../services/bypassRules';
   import {
     resolveLocaleDirectory,
     validateSettingsInput,
@@ -119,16 +120,7 @@
   }
 
   function invalidBypassLine(): string | null {
-    return (
-      parseBypassLines().find((rule) => {
-        try {
-          new RegExp(rule);
-          return false;
-        } catch {
-          return true;
-        }
-      }) ?? null
-    );
+    return parseBypassLines().find((rule) => parseBypassRule(rule) === null) ?? null;
   }
 
   function validate(): string | null {

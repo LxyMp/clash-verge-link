@@ -78,7 +78,7 @@ test('normalizeSettings sanitizes bypass rules and defaults to empty', () => {
   ]);
 });
 
-test('validateSettingsInput rejects invalid bypass regex and accepts valid ones', () => {
+test('validateSettingsInput rejects invalid bypass rules and accepts Clash-style ones', () => {
   const base = {
     apiProtocol: 'http' as const,
     apiHost: '127.0.0.1',
@@ -89,7 +89,11 @@ test('validateSettingsInput rejects invalid bypass regex and accepts valid ones'
     testUrl: 'https://www.gstatic.com/generate_204',
     testTimeout: 5000,
   };
-  assert.equal(validateSettingsInput({ ...base, bypassRules: ['[invalid'] }), 'bypassRuleInvalid');
+  assert.equal(validateSettingsInput({ ...base, bypassRules: ['bad..domain'] }), 'bypassRuleInvalid');
+  assert.equal(validateSettingsInput({ ...base, bypassRules: ['/[invalid/'] }), 'bypassRuleInvalid');
   assert.equal(validateSettingsInput({ ...base, bypassRules: [] }), null);
-  assert.equal(validateSettingsInput({ ...base, bypassRules: ['a\\.b', '^https://x'] }), null);
+  assert.equal(
+    validateSettingsInput({ ...base, bypassRules: ['a.com', '*.b.org', '/c\\.d/'] }),
+    null,
+  );
 });

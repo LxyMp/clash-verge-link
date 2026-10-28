@@ -15,11 +15,19 @@ ClashVergeLink 是一个浏览器扩展，同时支持桌面 Firefox 与 Chromiu
 
 ## 直连规则
 
-设置页的"直连规则"允许在代理开启时让指定网址直连：一行一条正则表达式，按**完整 URL**（含协议与路径）做子串匹配。例如 `example\.com` 命中所有 URL 中包含该域名的请求，`^https://internal\.` 命中以该前缀开头的内网地址。本机地址（localhost / 127.0.0.1 / [::1] / 无点主机名）始终直连。
+设置页的"直连规则"允许在代理开启时让指定网址直连，采用 Clash 风格的域名语法，一行一条：
+
+| 写法 | 匹配范围 |
+| --- | --- |
+| `example.com` | 该域名及其所有子域名 |
+| `*.example.com` | 仅其子域名（不含主域） |
+| `/^https?:\/\/internal\./` | 用斜杠包裹的正则，按完整 URL 子串匹配 |
+
+本机地址（localhost / 127.0.0.1 / [::1] / 无点主机名）始终直连，无需写规则。
 
 两个平台的实现方式不同：
 
-- Chrome：规则以 `/regex/` 形式写入 `chrome.proxy` 的 `bypassList`，由浏览器原生匹配，需兼容 RE2 语法（不支持前瞻、后向引用）。
+- Chrome：域名与通配规则映射为 `chrome.proxy` bypassList 的原生条目，由浏览器匹配；正则规则以 `/regex/` 条目写入（需兼容 RE2 语法）。
 - Firefox：规则通过 `browser.proxy.onRequest` 在扩展内逐请求匹配，支持完整 JavaScript 正则。
 
 规则在代理开启状态下保存后立即生效，无需重新开关代理。

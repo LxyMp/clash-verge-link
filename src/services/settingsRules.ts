@@ -1,4 +1,5 @@
 import type { PluginSettings } from '../types';
+import { parseBypassRule } from './bypassRules';
 
 export type ApiProtocol = 'http' | 'https';
 export type SettingsValidationError =
@@ -114,11 +115,7 @@ export function validateSettingsInput(input: SettingsInput): SettingsValidationE
   if (!Number.isInteger(input.testTimeout) || input.testTimeout < 1000 || input.testTimeout > 30000)
     return 'testTimeoutRange';
   for (const rule of input.bypassRules ?? []) {
-    try {
-      new RegExp(rule);
-    } catch {
-      return 'bypassRuleInvalid';
-    }
+    if (parseBypassRule(rule) === null) return 'bypassRuleInvalid';
   }
   return null;
 }

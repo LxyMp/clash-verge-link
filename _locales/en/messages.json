@@ -70,12 +70,12 @@
   "bypassConfig": { "message": "Bypass Rules" },
   "bypassRulesLabel": { "message": "URLs That Skip The Proxy" },
   "bypassRulesHint": {
-    "message": "One regular expression per line, matched against the full URL (scheme and path included). Matching URLs connect directly even when the proxy is ON. On Chrome, rules must be RE2-compatible (no lookahead or backreferences)."
+    "message": "One rule per line: a domain (example.com) matches the domain and all its subdomains; *.example.com matches subdomains only; wrap in /regex/ to match the full URL. Local addresses always connect directly."
   },
   "bypassRulesPlaceholder": {
-    "message": "example\\.com\n^https://internal\\.\n\\.google\\.com"
+    "message": "google.com\n*.example.com\n/^https:\\/\\/internal\\./"
   },
-  "validateBypassRule": { "message": "Invalid Regex Rule" },
+  "validateBypassRule": { "message": "Unrecognized Rule" },
 
   "save": { "message": "Save" },
   "saving": { "message": "Saving…" },

@@ -4,13 +4,16 @@ import test from 'node:test';
 import {
   buildChromeProxyConfig,
   buildFirefoxProxyConfig,
-  compileBypassRules,
   isOwnedChromeProxyConfig,
   isOwnedFirefoxProxyConfig,
   isSuccessfulResponse,
-  shouldBypassUrl,
   wrapChromeBypassRule,
 } from '../src/background/proxyState.ts';
+import {
+  compileBypass,
+  parseBypassRule,
+  parseBypassRules,
+} from '../src/services/bypassRules.ts';
 import { runBatched } from '../src/services/runBatched.ts';
 
 test('isSuccessfulResponse only accepts explicit success', () => {
@@ -193,26 +196,27 @@ test('isOwnedChromeProxyConfig verifies mode, endpoint and bypass list', () => {
   assert.equal(isOwnedChromeProxyConfig(base, 7899, undefined), false);
 });
 
-test('chrome config embeds bypass rules as slash-wrapped regex entries', () => {
-  const rules = ['example\\.com', '^https://internal\\.'];
+test('chrome config embeds bypass rules as native bypass entries', () => {
+  const rules = ['google.com', '*.example.com', '/^https?:\\/\\/internal/'];
   const config = buildChromeProxyConfig('127.0.0.1', 7899, rules);
   const bypass = config.rules?.bypassList ?? [];
-  assert.equal(bypass.length, 4 + rules.length);
-  assert.deepEqual(bypass.slice(0, 4), ['localhost', '127.0.0.1', '[::1]', '<local>']);
-  assert.deepEqual(bypass.slice(4), ['/.*(?:example\\.com).*/', '/.*(?:^https://internal\\.).*/']);
+  assert.deepEqual(bypass, [
+    'localhost',
+    '127.0.0.1',
+    '[::1]',
+    '<local>',
+    'google.com',
+    '*.google.com',
+    '*.example.com',
+    '/.*(?:^https?:\\/\\/internal).*/',
+  ]);
 
-  // 带规则的配置仍被识别为本扩展写入
+  // 带规则（含通配符条目）的配置仍被识别为本扩展写入
   assert.equal(isOwnedChromeProxyConfig(config, 7899, 'controlled_by_this_extension'), true);
-  // 非本扩展写入的普通条目（如手写通配符）不认定为归属配置
+  // 缺少本机直连条目的配置不认定为归属配置
   assert.equal(
     isOwnedChromeProxyConfig(
-      {
-        ...config,
-        rules: {
-          ...config.rules,
-          bypassList: [...(config.rules?.bypassList ?? []), '*.foo.com'],
-        },
-      },
+      { ...config, rules: { ...config.rules, bypassList: ['localhost'] } },
       7899,
       'controlled_by_this_extension',
     ),
@@ -228,18 +232,48 @@ test('wrapChromeBypassRule keeps substring semantics', () => {
   assert.equal(wrapped.test('https://other.org/path'), false);
 });
 
-test('compileBypassRules skips invalid rules', () => {
-  const compiled = compileBypassRules(['a\\.b', '[invalid', 'c']);
-  assert.equal(compiled.length, 2);
+test('parseBypassRule recognizes domains, wildcards and slash-wrapped regex', () => {
+  assert.deepEqual(parseBypassRule('  Google.COM '), { kind: 'domain', value: 'google.com' });
+  assert.deepEqual(parseBypassRule('*.Example.com'), { kind: 'wildcard', value: 'example.com' });
+  assert.deepEqual(parseBypassRule('/a\\.b/'), { kind: 'regex', value: 'a\\.b' });
+
+  assert.equal(parseBypassRule(''), null);
+  assert.equal(parseBypassRule('not a domain'), null);
+  assert.equal(parseBypassRule('bad..domain'), null);
+  assert.equal(parseBypassRule('https://example.com'), null);
+  assert.equal(parseBypassRule('example\\.com'), null); // 旧正则写法需改为域名或 /…/
+  assert.equal(parseBypassRule('*.-bad.com'), null);
+  assert.equal(parseBypassRule('/unterminated'), null);
+  assert.equal(parseBypassRule('/[invalid/'), null);
+
+  // 批量解析跳过非法行
+  assert.equal(parseBypassRules(['a.com', 'bad..x', '*.b.org']).length, 2);
 });
 
-test('shouldBypassUrl directs local and dotless hosts, then applies rules', () => {
-  const rules = compileBypassRules(['example\\.com', '\\.cn$']);
-  assert.equal(shouldBypassUrl('http://localhost:9097/version', rules), true);
-  assert.equal(shouldBypassUrl('http://127.0.0.1:7899', rules), true);
-  assert.equal(shouldBypassUrl('http://[::1]:8080/x', rules), true);
-  assert.equal(shouldBypassUrl('http://intranet/share', rules), true);
-  assert.equal(shouldBypassUrl('https://www.example.com/a', rules), true);
-  assert.equal(shouldBypassUrl('https://news.cn', rules), true);
-  assert.equal(shouldBypassUrl('https://www.google.com/search', rules), false);
+test('compiled bypass matcher covers local hosts, domains, wildcards and regex', () => {
+  const shouldDirect = compileBypass(
+    parseBypassRules(['example.com', '*.corp.net', '/^https:\\/\\/internal\\./']),
+  );
+
+  // 本机与无点主机名始终直连
+  assert.equal(shouldDirect('http://localhost:9097/version'), true);
+  assert.equal(shouldDirect('http://127.0.0.1:7899'), true);
+  assert.equal(shouldDirect('http://[::1]:8080/x'), true);
+  assert.equal(shouldDirect('http://intranet/share'), true);
+
+  // 域名规则：自身 + 子域名
+  assert.equal(shouldDirect('https://example.com/'), true);
+  assert.equal(shouldDirect('https://a.b.example.com/p?q=1'), true);
+  assert.equal(shouldDirect('https://notexample.com/'), false);
+
+  // 通配规则：仅子域名
+  assert.equal(shouldDirect('https://git.corp.net/repo'), true);
+  assert.equal(shouldDirect('https://corp.net/'), false);
+
+  // 正则规则：按完整 URL 子串匹配
+  assert.equal(shouldDirect('https://internal.wiki/home'), true);
+  assert.equal(shouldDirect('https://intranet.example.org/wiki'), false);
+
+  // 未命中
+  assert.equal(shouldDirect('https://www.google.com/search'), false);
 });

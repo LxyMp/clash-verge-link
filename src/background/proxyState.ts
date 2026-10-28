@@ -1,3 +1,5 @@
+import { parseBypassRules, type BypassRule } from '../services/bypassRules';
+
 export interface RuntimeResponse {
   success?: boolean;
   error?: string;
@@ -79,63 +81,52 @@ export function isOwnedFirefoxProxyConfig(
   );
 }
 
-/** 把用户规则逐条编译为 RegExp，非法规则跳过（UI 已做输入校验，此处兜底） */
-export function compileBypassRules(rules: string[]): RegExp[] {
-  const compiled: RegExp[] = [];
-  for (const rule of rules) {
-    try {
-      compiled.push(new RegExp(rule));
-    } catch {
-      // 忽略无法编译的规则
-    }
-  }
-  return compiled;
-}
-
 /**
- * Chrome bypassList 的正则条目形式为 /pattern/。
+ * Chrome bypassList 正则条目形式为 /pattern/。
  * 包装成 .*(?:pattern).* 后，无论 Chromium 对正则条目采用全匹配
  * 还是部分匹配，语义都等价于子串匹配，与 Firefox 侧 RegExp.test 一致；
  * 用户规则内部的 ^ $ 锚点在两种语义下仍然生效。
  */
-export function wrapChromeBypassRule(rule: string): string {
-  return `/.*(?:${rule}).*/`;
+export function wrapChromeBypassRule(source: string): string {
+  return `/.*(?:${source}).*/`;
 }
 
-/** Firefox onRequest 拦截判定：本机/无点主机名直连（对应 <local> 语义），其余按规则匹配完整 URL */
-export function shouldBypassUrl(url: string, regexes: RegExp[]): boolean {
-  try {
-    const host = new URL(url).hostname.replace(/^\[|\]$/g, '').toLowerCase();
-    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || !host.includes('.')) {
-      return true;
+/** 把解析后的规则映射为 Chrome 原生 bypass 条目（域名/通配符/正则） */
+function chromeBypassEntries(rules: BypassRule[]): string[] {
+  const entries: string[] = [];
+  for (const rule of rules) {
+    if (rule.kind === 'domain') {
+      // 同时写入裸域名与通配条目，保证在任何匹配语义下都覆盖"自身 + 子域名"
+      entries.push(rule.value, `*.${rule.value}`);
+    } else if (rule.kind === 'wildcard') {
+      entries.push(`*.${rule.value}`);
+    } else {
+      entries.push(wrapChromeBypassRule(rule.value));
     }
-  } catch {
-    // 无法解析的 URL 交给规则判断
   }
-  return regexes.some((re) => re.test(url));
+  return entries;
 }
 
 /** 生成 Chrome fixed_servers 代理配置，HTTP(S) 流量统一走 Clash 混合端口，本地地址与命中规则的 URL 直连 */
-export function buildChromeProxyConfig(host: string, port: number, bypassRules: string[] = []): ChromeProxyValue {
+export function buildChromeProxyConfig(
+  host: string,
+  port: number,
+  bypassRules: string[] = [],
+): ChromeProxyValue {
   return {
     mode: 'fixed_servers',
     rules: {
       singleProxy: { scheme: 'http', host, port },
-      bypassList: [...EXPECTED_BYPASS, ...bypassRules.map(wrapChromeBypassRule)],
+      bypassList: [...EXPECTED_BYPASS, ...chromeBypassEntries(parseBypassRules(bypassRules))],
     },
   };
 }
 
 function matchesBypassList(list: string[] | undefined): boolean {
   if (!list) return false;
-  const rest = [...list];
-  for (const expected of EXPECTED_BYPASS) {
-    const index = rest.indexOf(expected);
-    if (index === -1) return false;
-    rest.splice(index, 1);
-  }
-  // 除本机直连条目外，其余应全部是本扩展写入的 /regex/ 形式
-  return rest.every((entry) => /^\/.+\//.test(entry));
+  // 归属判断只需确认四个本机直连条目存在；其余条目是用户规则（域名/通配/正则），形态不定
+  const entries = new Set(list.map((entry) => entry.trim().toLowerCase()));
+  return EXPECTED_BYPASS.every((expected) => entries.has(expected));
 }
 
 /** 判断 Chrome 当前代理配置是否由本扩展写入（且仍指向当前端口） */

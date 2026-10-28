@@ -1,11 +1,10 @@
 import { isChromium } from '../compat/platform';
+import { compileBypass, parseBypassRules } from '../services/bypassRules';
 import {
   buildChromeProxyConfig,
   buildFirefoxProxyConfig,
-  compileBypassRules,
   isOwnedChromeProxyConfig,
   isOwnedFirefoxProxyConfig,
-  shouldBypassUrl,
   type ChromeProxyValue,
   type FirefoxProxyValue,
 } from './proxyState';
@@ -73,19 +72,18 @@ function unregisterBypassListener(): void {
 }
 
 /**
- * Firefox 无 bypassList 正则能力，改用 proxy.onRequest 逐请求拦截：
+ * Firefox 无 bypassList 能力，改用 proxy.onRequest 逐请求拦截：
  * 命中规则的 URL 返回 direct，其余显式返回代理。
  * proxy.settings 仍然同步写入，状态判断与端口变更逻辑保持不变。
  */
 function registerBypassListener(host: string, port: number, rules: string[]): void {
   unregisterBypassListener();
-  const regexes = compileBypassRules(rules);
-  if (regexes.length === 0) return;
+  const parsed = parseBypassRules(rules);
+  if (parsed.length === 0) return;
 
-  const listener: FirefoxBypassListener = (details) => {
-    if (shouldBypassUrl(details.url, regexes)) return { type: 'direct' };
-    return { type: 'http', host, port };
-  };
+  const shouldDirect = compileBypass(parsed);
+  const listener: FirefoxBypassListener = (details) =>
+    shouldDirect(details.url) ? { type: 'direct' } : { type: 'http', host, port };
   firefoxOnRequest().addListener(listener, { urls: ['<all_urls>'] });
   bypassListener = listener;
 }
